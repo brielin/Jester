@@ -1,0 +1,20 @@
+import os
+import fnmatch
+import numpy as np
+import scipy as sp
+import pandas as pd
+import sys
+from scipy import stats
+from math import exp
+from time import time
+
+def collect(fbase,alpha=0.05):
+    fsplit = fbase.rsplit('/',1)
+    if len(fsplit) > 1:
+        directory=fsplit[0]
+        fb=fsplit[1]
+    else:
+        directory='.'
+        fb=fbase
+    for file in os.listdir(directory):
+        if fnmatch.fnmatch(file, '*.Z.pkl'):

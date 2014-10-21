@@ -1,0 +1,147 @@
+import numpy as np
+import scipy as sp
+import pandas as pd
+from scipy import stats
+from math import exp
+from time import time
+from jester import util as ju
+
+def test(IN, verbose=False):
+    IN.getSNPIterator()
+    if verbose:
+        print IN.N,"individuals. Beginning to process",IN.numSNPs,"SNPs."
+
+    if verbose: print "Fitting null model."
+    Y = IN.phenos
+    null = sm.Logit( Y, X0 ).fit(disp=0)
+    print "Done."
+
+    ncov = IN.X0.shape[1]
+    uniResCols = ['chr','rsid','pos','beta','beta_se','or','t_stat','Chi2','p_val']
+colRes = ['dist','pos1','pos2','p1','p2','cor','gb1_b','gb1_se','gb1_or','gb1_t','gb1_Chi2','gb1_p','gb1_LogLik','gb2_b','gb2_se','gb2_or','gb2_t','gb2_Chi2','gb2_p','gb2_LogLik','gb3_b1','gb3_se1','gb3_or1','gb3_t1','gb3_p1','gb3_b2','gb3_se2','gb3_or2','gb3_t2','gb3_p2','gb3_LogLik','gb3_Chi2','gb3_pv','gb4_b1','gb4_se1','gb4_or1','gb4_t1','gb4_p1','gb4_b2','gb4_se2','gb4_or2','gb4_t2','gb4_p2','gb4_bx','gb4_sex','gb4_orx','gb4_tx','gb4_px','gb4_LogLik','gb4_Chi2','gb4_pv']
+colSNP = ['snp1','snp2']
+resSNP = []##pd.DataFrame( index = range( wt*L ), columns = colSNP, dtype = 'object' ) ##
+
+resArr = pd.DataFrame( index = range( wt*Len ), columns = colRes, dtype = 'float64' ) ## Over-estimates size by a bit. 
+uni_res = pd.DataFrame( index = range(Len), columns = uniResCols )
+
+i = 0 # Tracks which SNP # we're at
+index = 0 # Tracks how many tests we've done
+t = time()
+while i < Len:
+   if ((options.verbose) & ( i%10 == 0 )): print "At SNP", i, "time spent:", time()-t
+   snp,id,pos = IN.next()
+   p = np.mean( snp ) # This is for tped and bfiles, for geno files need 1/2
+    ## Do Marginal Test
+   gb = sm.Logit( Y, np.hstack(( X0, snp.reshape((len(snp),1)) )) ).fit(disp=0)
+   gb_b = gb.params[ncov]
+   gb_or = np.exp( gb.params[ncov] )
+   gb_se = gb.bse[ncov]
+   gb_p = gb.pvalues[ncov]
+   gb_t = gb.tvalues[ncov]
+   gb_n = gb.nobs
+   gb_AIC = gb.aic
+   gb_BIC = gb.bic
+   gb_dev = 0 #gb.llr... should be same as Chi2 no?
+   gb_LogLik = gb.llf
+   gb_Chi2 = 2*(gb.llf - null.llf)
+   gb_Cox = 1 - np.exp(-gb_Chi2/gb_n )
+   gb_Nag = 0 #gb_Cox/(1 - np.exp( -null.llr/gb_n )) # I'm not sure what likleihood ratio could mean for the NULL model.
+   uni_res.iloc[ i, : ] = np.array([id,pos,gb_b, gb_se, gb_or, gb_t, gb_Chi2, gb_p, gb_LogLik])
+    # uni_res[i,:] = np.array([ gb_or, gb_se, gb_z, gb_p, gb_Nag, gb_BIC, gb_AIC, gb_LogLik])
+   if( i == 0 ): 
+      win = np.array([snp])
+      idStore = np.array([(id,pos)],dtype='object,int')
+      gbStore = np.array([gb]) # A numpy array of SM RegressionResults objects...?
+      pStore = np.array([p])
+   else: ## Do Joint test
+      for dist,(w,(id2,pos2),gb2,p2) in enumerate(zip(win,idStore,gbStore,pStore)):
+         r = MHC.corr(w,snp,P)
+         resNA = [id,id2,dist+1,pos,pos2,p,p2,r,gb_b,gb_se,gb_or,gb_t,gb_Chi2,gb_p, gb_LogLik,gb2.params[ncov],gb2.bse[ncov],np.exp( gb2.params[ncov] ),gb2.tvalues[ncov],2*(gb2.llf - null.llf),gb2.pvalues[ncov],gb2.llf, -9, -9, -9, -9, -9, -9, -9, -9, -9, -9, -9, -9, -9, -9, -9, -9, -9, -9, -9, -9, -9, -9, -9, -9, -9, -9, -9, -9, -9, -9, -9]
+         if( (r**2 > rMax) | (r**2 < rMin)):
+                #if options.verbose: print "Skipping SNPs ",id,id2,index, ". r2 = ", r**2
+            res = resN
+         else:
+            X = np.hstack(( X0, snp.reshape((len(snp),1)), w.reshape((len(w),1)), (snp*w).reshape((len(snp),1)) ))
+                #if options.verbose: print "Testing SNPs", id, id2, i, index
+            try:
+               gb3 = sm.Logit( Y,  X[:,:-1] ).fit(disp=0)
+               gb3_b1 = gb3.params[ncov]
+               gb3_or1 = np.exp( gb3.params[ncov] )
+               gb3_se1 = gb3.bse[ncov]
+               gb3_p1 = gb3.pvalues[ncov]
+               gb3_t1 = gb3.tvalues[ncov]
+               gb3_b2 = gb3.params[ncov+1] 
+               gb3_or2 = np.exp( gb3.params[ncov+1] )
+               gb3_se2 = gb3.bse[ncov+1]
+               gb3_p2 = gb3.pvalues[ncov+1]
+               gb3_t2 = gb3.tvalues[ncov+1]
+               gb3_n = gb3.nobs
+               gb3_Chi2 = 2*(gb3.llf - null.llf)
+               gb3_pv = 1 - stats.chi2.cdf( gb3_Chi2, 2 )
+               gb3_Cox = 1 - np.exp( -gb3_Chi2/gb3_n )
+               gb3_Nag = 0 #gb3_Cox/(1 - exp( -null.llr/gb3_n ))
+               gb3_AIC = gb3.aic
+               gb3_BIC = gb3.bic
+               gb3_LogLik = gb3.llf
+               chi2_3v1 = 2 * ( gb3_LogLik - gb.llf )
+               chi2_3v2 = 2 * ( gb3_LogLik - gb2.llf )
+            
+            ## Joint and Cross test
+                #gb4 = sm.Logit( Y, X, missing = 'drop' ).fit(disp=0,maxiter=maxiter)
+            #if( (sum( X[:,-1] == X[:,-2] ) == len( X[:,-2] )) or (sum( X[:,-1] == X[:,-3] ) == len( X[:,-3] )) ):
+            #   print index, "HERE"
+               gb4 = sm.Logit( Y,  X, missing = 'drop' ).fit(disp=0)
+               gb4_b1 = gb4.params[ncov]
+               gb4_or1 = np.exp( gb4.params[ncov] )
+               gb4_se1 = gb4.bse[ncov]
+               gb4_p1 = gb4.pvalues[ncov]
+               gb4_t1 = gb4.tvalues[ncov]
+               gb4_b2 = gb4.params[ncov+1]
+               gb4_or2 = np.exp( gb4.params[ncov+1] )
+               gb4_se2 = gb4.bse[ncov+1]
+               gb4_p2 = gb4.pvalues[ncov+1]
+               gb4_t2 = gb4.tvalues[ncov+1]
+               gb4_bx = gb4.params[ncov+2]
+               gb4_orx = np.exp( gb4.params[ncov+2] )
+               gb4_sex = gb4.bse[ncov+2]
+               gb4_px = gb4.pvalues[ncov+2]
+               gb4_tx = gb4.tvalues[ncov+2]        
+               gb4_n = gb4.nobs
+               gb4_Chi2 = 2*(gb4.llf - null.llf)
+               gb4_pv = 1 - stats.chi2.cdf( gb4_Chi2, 3 )
+               gb4_Cox = 1 - np.exp( -gb4_Chi2/gb4_n )
+               gb4_Nag = 0 #gb4_Cox/(1 - exp( -null.llr/gb4_n ))
+               gb4_AIC = gb4.aic
+               gb4_BIC = gb4.bic
+               gb4_LogLik = gb4.llf
+               chi2_4v3 = 2 * ( gb4_LogLik - gb3_LogLik )
+               res = [id,id2,dist+1,pos,pos2,p,p2,r,gb_b,gb_se,gb_or,gb_t,gb_Chi2,gb_p,gb_LogLik,gb2.params[ncov],gb2.bse[ncov],np.exp( gb2.params[ncov] ),gb2.tvalues[ncov],2*(gb2.llf - null.llf),gb2.pvalues[ncov],gb2.llf, gb3_b1,gb3_se1,gb3_or1,gb3_t1,gb3_p1, gb3_b2,gb3_se2,gb3_or2,gb3_t2,gb3_p2,gb3_LogLik, gb3_Chi2, gb3_pv,gb4_b1,gb4_se1,gb4_or1,gb4_t1,gb4_p1, gb4_b2,gb4_se2,gb4_or2,gb4_t2,gb4_p2,gb4_bx,gb4_sex,gb4_orx,gb4_tx,gb4_px,gb4_LogLik, gb4_Chi2, gb4_pv]
+            except np.linalg.linalg.LinAlgError as err:
+               print "Error encountered in a joint test of SNP", i, "and",i-(dist+1),"\n", err.message, "\n Skipping and continuing\n"
+               res = resNA            ## Joint Test
+            #resSNP.iloc[ index, : ] = res[0:2]
+         resSNP.append(res[0:2])
+         resArr.iloc[ index, : ] = res[2:]
+         index = index + 1
+      win = np.vstack(( snp, win))
+      idStore = np.append(np.array([(id,pos)],dtype='object,int'), idStore ) ## Backwards to match win
+      pStore = np.append(p, pStore)
+      gbStore = np.append(gb, gbStore)
+   if( win.shape[0] > wt ): 
+      win = win[:-1,:]
+      idStore = idStore[:-1]
+      pStore = pStore[:-1]
+      gbStore = gbStore[:-1]
+   i = i+1
+
+if options.verbose: print (index+1), "tests done in: ", time() - t, "seconds. Saving output."
+
+## SAVE ## 
+resSNP = pd.DataFrame( resSNP, columns=colSNP )
+resArr = resArr.iloc[0:(index),:]
+resArr = pd.concat([resSNP,resArr],axis=1)
+resArr[['dist','pos1','pos2']] = resArr[['dist','pos1','pos2']].astype(int) ## bug fix
+resArr[['impR','impPV1','impPV2','impPVJ']] = [0,1,1,1]
+resArr.to_csv(ofile+'.joint.out',sep=' ',na_rep='NA',float_format='%.5g')
+uni_res.to_csv(ofile+'.marg.out',sep=' ',na_rep='NA',float_format='%.5g')

@@ -1,0 +1,11 @@
+README
+setup.py
+jester/__init__.py
+jester/__main__.py
+jester/input.py
+jester/util.py
+jester.egg-info/PKG-INFO
+jester.egg-info/SOURCES.txt
+jester.egg-info/dependency_links.txt
+jester.egg-info/entry_points.txt
+jester.egg-info/top_level.txt

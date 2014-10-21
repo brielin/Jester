@@ -1,0 +1,23 @@
+-- Genotype File Formats --
+Binary PED: PLINK binary genotype file format. For more information
+    see http://pngu.mgh.harvard.edu/~purcell/plink/data.shtml
+Transposed PED: PLINK transposted text genotype file format. See
+    http://pngu.mgh.harvard.edu/~purcell/plink/data.shtml
+EMMA: For backwards compatibility with emma, we allow for "EMMA" file formats.
+    This is just a text file with individuals on the rows and snps on the
+    columns. The program looks for an associated .snp or .map file for alleles
+    and SNP names, and to count the total number of SNPs.
+geno: For compatability with .geno formats. This is a file with each row
+    representing a SNP in {0,1,2,9} with no whitespace between individuals.
+    The program looks for an associated .snp or .map file for alleles and SNP
+    names, and to count the total number of SNPs.
+gens: For compatability with .gens Impute2 file formats. This file has a line
+    for every SNP. In each line, the first 5 words are SNPID, RSID, position,
+    Allele 1 and Allele 2. After this there is a triplet of probabilities for
+    each individual, representing the probabilities of genotype 0, 1 and 2.
+Summary Statistics: For use with the summary statistics methods. This is a
+    summary statistics file with one line for each SNP and columns
+    Chr RSID position alleleFreq Beta/logOdds StandardError pValue.
+
+-- Phenotype File Formats --
+EMMA: This is just a text file with each phenotype as one row.

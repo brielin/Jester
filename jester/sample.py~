@@ -1,0 +1,99 @@
+import sys
+import pdb
+import numpy as np
+import scipy as sp
+import pandas as pd
+from scipy import stats
+from math import exp
+from time import time
+from jester import input
+from jester import util
+
+def sample(IN, wt=100, wr=100, wStep=0, rMin=0.0, rMax=1.0,rStep=0.0,
+           numSamples=1000,minMAF=0.05):
+    if( rStep > 0.0 ):
+        R = np.arange(rMin,rMax,rStep) ## 0 to 1-rStep
+    else:
+        R = np.array([rMin])
+    if( wStep > 0 ):
+        W = np.arange( wStep, wt + wStep, wStep ) ## wStep to wt 
+    else:
+        W = np.array( [wt] )
+
+    ZMaxStats = np.zeros(numSamples)
+    JMaxStats = np.zeros( (len(W), len(R), numSamples) )
+
+    IN.getSNPIterator()
+
+    if options.verbose:
+        print "Found ", N, " individuals. Beginning to process ", L, " SNPs."
+i = 0
+t = time()
+index = 0
+for i in range(L):
+    if( i%10 == 0 ): print "At SNP", i, "time spent:", time()-t
+    snp,id,pos = IN.next()
+    MAF = np.mean(snp)
+    #if i == 4902: continue 
+    if (MAF < minMAF) or (MAF > 1- minMAF):
+       #print MAF
+       continue
+    if( index == 0 ):
+        win = np.array([snp])
+        ZVals, SigI_next = MHC.sampleNorm( np.array([]), np.array([]), np.array([]), numSamples, wr)
+        ZMat = np.array([ZVals])
+    else:
+        rVals = np.array( [ MHC.corr(x,snp,P) for x in win ] )
+        if( sum( abs(rVals) > rSame ) ):
+           continue
+        try:
+           ZVals, SigI_next = MHC.sampleNorm( Sig22I, rVals, ZMat, numSamples, wr,i )
+        except np.linalg.LinAlgError:
+           continue
+        JVals = np.array( map( lambda (Z,r): MHC.EZJV( Z, ZVals, r, R ) if r**2 < rMax else np.zeros( (len(R), len(Z)) ), zip(ZMat[:wt,], rVals[:wt]) )) ## Skip test if r is larger than max set
+        #JVals = np.array( [ MHC.EZJV( Z, ZVals, r, R ) for (Z,r) in zip(ZMat[:wt,], rVals[:wt]) ] ) ## .shape = ( len(rVals), len(R), numSamples )
+        JMaxSlide = np.array( [ np.max( JVals[:w,:,:], axis = 0 ) for w in W ] )
+                #JMaxStats = np.maximum( JMaxStats, JMax )
+        JMaxStats = np.maximum( JMaxStats, JMaxSlide )
+
+        win = np.vstack( (snp, win) ) ## Append next SNP to front
+        ZMat = np.vstack( (ZVals, ZMat) )
+    if( win.shape[0] > wr ):
+        win = win[:-1,:]
+        ZMat = ZMat[:-1,:]
+    Sig22I = SigI_next
+    ZMaxStats = np.maximum( ZMaxStats, abs(ZVals) )
+    index += 1 
+    pv = 2*( 1 - stats.norm.cdf( ZMaxStats ) )
+    if sum(pv < 1e-12):
+       print id
+       print MAF
+       print i
+       print ZVals
+       print rVals
+       sys.exit()
+    #if( i%100 == 0 ):
+    #   print 2*( 1 - stats.norm.cdf( ZMaxStats ) )
+print "Completed", index, "tests. Saving output."
+
+ZpVals = 2*( 1 - stats.norm.cdf( ZMaxStats ) )
+JpVals = pd.Panel( [ [ ( 1 - stats.chi2.cdf( y, 2 ) ) for y in x ] for x in JMaxStats ], items = W, major_axis = R )
+BpVals = pd.Panel( [ [ np.minimum( 1 - stats.chi2.cdf( y, 2 ), ZpVals ) for y in x ] for x in JMaxStats ], items = W, major_axis = R )
+pd.DataFrame( ZpVals ).to_pickle( ofile + '.Z.pkl' )
+JpVals.to_pickle( ofile + '.J.pkl' )
+BpVals.to_pickle( ofile + '.B.pkl' )
+
+#### Used in collect, just here for testing ####
+# index = int( np.round( (alpha)*(numSamples-1) ))
+# sortZpVals = np.sort( ZpVals )
+# sortJpVals = pd.Panel( np.sort( JpVals ), items = JpVals.items, major_axis=JpVals.major_axis, minor_axis = range(numSamples) ) ## Didnt look like there was a way to sort in Panels?
+# alphaC_Z = sortZpVals[index]
+# #alphaC_J = sortJpVals[:,index]
+# alphaC_J = sortJpVals.minor_xs(index)
+# effNumTests_Z = alpha/alphaC_Z
+# effNumTests_J = alpha/alphaC_J
+# pd.set_option('display.float_format', lambda x: '%.3g' % x)
+# print alphaC_J
+# print alphaC_Z
+####
+
