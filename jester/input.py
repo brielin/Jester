@@ -249,7 +249,7 @@ class plink:
          def f(x,y):
             0.5*float(x) + float(y)
          ##Compute dosages based on genotype probabilities, X[0:4] are snp info.
-         G = np.array( map( f(x,y), X[6::3], X[7::3] ) )
+         G = np.array( map( f, X[6::3], X[7::3] ) )
          if not len(G) == self.N:
             print "SNPs read does not match number of individuals. Exiting"
             sys.exit(1)
