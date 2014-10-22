@@ -13,7 +13,7 @@ def EZJVwrapper(Z,r,ZVals,R,rMax):
         return np.zeros((len(R), len(Z)))
 
 def sample(IN, wt=100, wr=100, wStep=0, rMin=0.0, rMax=1.0,rRange=False,
-           numSamples=1000, minMAF=0.05, verbose=False):
+           numSamples=1000, minMAF=0.05, verbose=False, L=0):
     if rRange:
         R = np.array([0.0, 0.0001, 0.0004, 0.001, 0.002, 0.004, 0.008  ])
     else:
@@ -30,12 +30,13 @@ def sample(IN, wt=100, wr=100, wStep=0, rMin=0.0, rMax=1.0,rRange=False,
 
     if verbose:
         print IN.N,"individuals. Beginning to process",IN.numSNPs,"SNPs."
+    if L==0: L=IN.numSNPs
     t = time()
     index = 0
     win = deque()
     Sig22I = None
     ZMat = None
-    for i in range(200):#range(IN.numSNPs):
+    for i in range(L):
         if( i%10 == 0 ): print "At SNP", i, "time spent:", time()-t
         snp,chrm,id,pos = IN.next()
         af = np.mean(snp)

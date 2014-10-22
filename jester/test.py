@@ -8,7 +8,9 @@ from math import exp
 from time import time
 from jester import util as ju
 
-def test(IN, wt=100, rMin=0.0, rMax=1.0, verbose=False, crossTest=False):
+def test(IN, wt=100, rMin=0.0, rMax=1.0, verbose=False, crossTest=False,
+         minp=1e-05, L=0):
+    chimin = stats.chi2.ppf(1-minp,2)
     IN.getSNPIterator()
     if verbose:
         print IN.N,"individuals. Beginning to process",IN.numSNPs,"SNPs."
@@ -29,16 +31,15 @@ def test(IN, wt=100, rMin=0.0, rMax=1.0, verbose=False, crossTest=False):
               'pval2_X','beta3_X','beta3_X_se','or3_X','t3_X','pval3_X',
               'Chi2_X','pval_X']
 
-    #marg_res = []
-    #joint_res = []
-    marg_res = np.zeros((200,len(margResCols)))
-    joint_res = np.zeros((200*wt,len(jointResCols)))
+    marg_res = []
+    joint_res = []
+    if L==0: L = IN.numSNPs
     i = 0 # Tracks which SNP # we're at
     index = 0 # Tracks how many tests we've done
     t = time()
     win = deque()
     store = deque()
-    for i in range(200):#range(IN.numSNPs):
+    for i in range(L):
         if (verbose & (i%10 == 0)):
             print "At SNP", i, "time spent:", time()-t
         snp,chrm,id,pos = IN.next()
@@ -56,13 +57,19 @@ def test(IN, wt=100, rMin=0.0, rMax=1.0, verbose=False, crossTest=False):
                         marg_Chi2, marg_p])
         for dist,(w,(id2,pos2,af2,marg2)) in enumerate(zip(win,store)):
             r = ju.corr(w,snp,IN.P)
+            Z1 = stats.norm.ppf(1-marg_p/2)
+            Z2_min = (r*Z1 + np.sqrt( (r*Z1)**2 + 4*(chimin*(1-r**2)-Z1**2)))/2
+            p2_min = 2*(1-stats.norm.cdf(Z2_min))
             resNA = [chrm,id,id2,dist+1,pos,pos2,af,af2,r,marg_b,marg_p,
                      marg2.params[ncov],marg2.pvalues[ncov], -9, -9, -9, -9, -9,
                      -9, -9, -9, -9, -9, -9, -9, -9, -9, -9, -9, -9, -9, -9, -9,
                      -9, -9, -9, -9, -9, -9, -9, -9, -9]
             if( (r**2 > rMax) | (r**2 < rMin)):
                 res = resNA
+            elif marg2.pvalues[ncov] > p2_min:
+                res = resNA
             else:
+
                 X = np.hstack(( IN.cov, snp.reshape((len(snp),1)),
                                 w.reshape((len(w),1)),
                                 (snp*w).reshape((len(snp),1)) ))
@@ -113,6 +120,7 @@ def test(IN, wt=100, rMin=0.0, rMax=1.0, verbose=False, crossTest=False):
                            cross_p1,cross_b2,cross_se2,cross_or2,cross_t2,
                            cross_p2,cross_bx,cross_sex,cross_orx,cross_tx,
                            cross_px,cross_Chi2,cross_pv]
+                    index += 1
                 except np.linalg.linalg.LinAlgError as err:
                     print ("Error encountered in a joint test of SNP", i, "and",
                            i-(dist+1),"\n", err.message, "\nContinuing\n")
@@ -123,7 +131,6 @@ def test(IN, wt=100, rMin=0.0, rMax=1.0, verbose=False, crossTest=False):
         if( len(win) > wt ):
             win.pop()
             store.pop()
-        index += 1
     if verbose:
         print (index+1),"tests done in: ",time() - t,"seconds. Saving output."
     joint_resDF = pd.DataFrame(joint_res,columns=jointResCols)

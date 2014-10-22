@@ -17,7 +17,7 @@ def main(argv):
     usage = """usage: %prog [options] --[t|b]file fileBase outfileBase
             Basic usage:
                 ./jester --[sample/test] -v --JointTestingWindow 50
-                    --bfile plinkFile --covfile covfile --out outputFile"""
+                    --file plinkBinaryFile --covfile covfile --out outputFile"""
     parser = OptionParser(usage=usage)
     basicGroup = OptionGroup(parser, "Basic Options")
     advGroup = OptionGroup(parser, "Advanced Options")
@@ -106,8 +106,11 @@ def main(argv):
     advGroup.add_option("--rRange",dest="rRange",default=False,
                         action="store_true",help="With this option the MTC"
                         "will be computed for a range of correlation cutoffs")
-    # advGroup.add_option("-L", dest = "L", help="Sets the length of analysis. "
-    #                     "Default is whole input.", default=0)
+    advGroup.add_option("-L", dest = "L", help="Sets the length of analysis. "
+                        "Default is whole input.", default=0)
+    advGroup.add_option("--minp", dest="minp", help="Sets the minimum expected"
+                        "p-value for doing the joint test. Defult is 1e-05. Set"
+                        "to 1 to fit the model for every pair.", default=1e-05)
 
     parser.add_option_group(basicGroup)
     parser.add_option_group(advGroup)
@@ -126,7 +129,8 @@ def main(argv):
     # rSame = float(options.rSame)
     numSamples = int(options.numSamples)
     minMAF = float(options.minMAF)
-    #L = 0 #int(options.L)
+    L = int(options.L)
+    minp = float(options.minp)
     seed = int(options.seed)
     if seed != 0: np.random.seed(seed)
 
@@ -157,12 +161,12 @@ def main(argv):
                          noMean=options.noMean)
         if options.sMode:
             ZpVals, JpVals = sample(IN,wt,wr,wStep,rMin,rMax,options.rRange,
-                                    numSamples,minMAF,options.verbose)
+                                    numSamples,minMAF,options.verbose,L)
             ZpVals.to_pickle( outFile + '.Z.pkl' )
             JpVals.to_pickle( outFile + '.J.pkl' )
         elif options.tMode:
-            joint_res, marg_res = test(IN, wt, rMin, rMax,
-                                       options.verbose, options.crossTest)
+            joint_res, marg_res = test(IN, wt, rMin, rMax, options.verbose,
+                                       options.crossTest, minp, L)
             joint_res.to_csv(outFile+'.joint.out',sep='\t',na_rep='NA',
                              float_format='%.5g')
             marg_res.to_csv(outFile+'.marg.out',sep='\t',na_rep='NA',
