@@ -24,5 +24,5 @@ t = time()
 for i in range(1000):
     a = np.ones((4000))
     A[i+100,:] = a
-    C = B.dot(A[i+1:(i+100+1),:])
+    C = B.dot(A[i+1:(i+100+1),
 print time()-t

@@ -29,8 +29,10 @@ def test(IN, wt=100, rMin=0.0, rMax=1.0, verbose=False, crossTest=False):
               'pval2_X','beta3_X','beta3_X_se','or3_X','t3_X','pval3_X',
               'Chi2_X','pval_X']
 
-    marg_res = []
-    joint_res = []
+    #marg_res = []
+    #joint_res = []
+    marg_res = np.zeros((200,len(margResCols)))
+    joint_res = np.zeros((200*wt,len(jointResCols)))
     i = 0 # Tracks which SNP # we're at
     index = 0 # Tracks how many tests we've done
     t = time()
