@@ -5,6 +5,7 @@ from collections import deque
 from scipy import stats
 from time import time
 from jester import util as ju
+from jester import sliding_window as sw
 
 def EZJVwrapper(Z,r,ZVals,R,rMax):
     if r**2 < rMax:
@@ -25,9 +26,7 @@ def sample(IN, wt=100, wr=100, wStep=0, rMin=0.0, rMax=1.0,rRange=False,
 
     ZMaxStats = np.zeros(numSamples)
     JMaxStats = np.zeros( (len(W), len(R), numSamples) )
-
     IN.getSNPIterator()
-
     if verbose:
         print IN.N,"individuals. Beginning to process",IN.numSNPs,"SNPs."
     if L==0: L=IN.numSNPs
@@ -36,8 +35,9 @@ def sample(IN, wt=100, wr=100, wStep=0, rMin=0.0, rMax=1.0,rRange=False,
     win = deque()
     Sig22I = None
     ZMat = None
+    WIN = sw.sliding_window(win_len=wr,arr_len=10*wr,vec_len=numSamples)
     for i in range(L):
-        if( i%10 == 0 ): print "At SNP", i, "time spent:", time()-t
+        if (i%100 == 0) and verbose: print "At SNP", i, "time spent:", time()-t
         snp,chrm,id,pos = IN.next()
         af = np.mean(snp)
         if (af < minMAF) or (af > 1- minMAF):
@@ -50,25 +50,18 @@ def sample(IN, wt=100, wr=100, wStep=0, rMin=0.0, rMax=1.0,rRange=False,
         except np.linalg.LinAlgError:
             continue
         if len(win) > 0:
-            JVals = np.array([EZJVwrapper(Z,r,ZVals,R,rMax)
-                              for Z,r in zip(ZMat[:wt,], rVals[:wt])])
+            JVals = np.ones((len(win),len(R),numSamples))
+            for j,(Z,r) in enumerate(zip(ZMat[:wt,], rVals[:wt])):
+                JVals[j] = EZJVwrapper(Z,r,ZVals,R,rMax)
             JMaxSlide = np.array([np.max(JVals[:w,:,:], axis = 0) for w in W])
             JMaxStats = np.maximum( JMaxStats, JMaxSlide )
         win.appendleft(snp)
-        if index == 0:
-            ZMat = np.array([ZVals])
-        else:
-            ZMat = np.append([ZVals],ZMat,axis=0)
-            #ZMat = np.vstack( (ZVals, ZMat) )
-        if( len(win) > wr ):
-            win.pop()
-            ZMat = ZMat[:-1,:]
+        ZMat = WIN.next(ZVals)
+        if( len(win) > wr ): win.pop()
         Sig22I = SigI_next
         ZMaxStats = np.maximum( ZMaxStats, abs(ZVals) )
         index += 1
-
     print "Completed", index, "tests. Saving output."
-
     ZpVals = 2*(1 - stats.norm.cdf(ZMaxStats))
     JpVals = pd.Panel([[np.minimum(1 - stats.chi2.cdf(y, 2), ZpVals) for y in x]
                        for x in JMaxStats], items = W, major_axis = R)

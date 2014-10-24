@@ -52,6 +52,13 @@ def EZJV(  Z1, Z2, r, R ):
     mat[ R <= r**2, : ] = score
     return mat
 
+def EZJV2( Z1,Z2,r ):
+    try:
+        score = (1/(1-r**2))*(Z1**2 + Z2**2 - 2*r*Z1*Z2)
+    except ZeroDivisionError:
+        score = Z1**2
+    return score
+
 def EZChi2( Y, snp, Cov, missing ):
     return EZZ( Y, snp, Cov, missing)**2
 
@@ -82,7 +89,7 @@ def XV( Yall, snp, s, r, R, resN, X0 = None, missing = 'drop' ):
 
 # TODO: Implement more than just drop and raise, add corresponding option
 # If X0 is supplied, computes the partial correlation between X1 and X2 given X0
-def corr( X1, X2, X0 = None, missing = 'drop' ):
+def corr( X1, X2, X0=None, missing=None ):
     if missing == 'drop':
         mask = True - (np.isnan(X1) | np.isnan(X2))
         X1 = X1[mask]

@@ -121,11 +121,11 @@ def test(IN, wt=100, rMin=0.0, rMax=1.0, verbose=False, crossTest=False,
                            cross_p2,cross_bx,cross_sex,cross_orx,cross_tx,
                            cross_px,cross_Chi2,cross_pv]
                     index += 1
+                    joint_res.append(res)
                 except np.linalg.linalg.LinAlgError as err:
-                    print ("Error encountered in a joint test of SNP", i, "and",
-                           i-(dist+1),"\n", err.message, "\nContinuing\n")
+                    print "Error encountered in a joint test of SNP", i, "and",\
+                        i-(dist+1),". Continuing"
                     res = resNA
-            joint_res.append(res)
         win.appendleft(snp)
         store.appendleft((id,pos,af,marg))
         if( len(win) > wt ):

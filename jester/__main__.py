@@ -126,13 +126,16 @@ def main(argv):
     wStep = int(options.wStep)
     rMax = float(options.rMax)
     rMin = float(options.rMin)
-    # rSame = float(options.rSame)
     numSamples = int(options.numSamples)
     minMAF = float(options.minMAF)
     L = int(options.L)
     minp = float(options.minp)
     seed = int(options.seed)
     if seed != 0: np.random.seed(seed)
+    if wt > wr:
+        sys.stderr.write("Testing window larger than approx window."
+                         " Resetting approx window.\n")
+        wr=wt
 
     if (not options.fbase) or (not options.outFile):
         parser.error("You must provide a base file, and output file")
