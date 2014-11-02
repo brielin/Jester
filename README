@@ -21,3 +21,9 @@ Summary Statistics: For use with the summary statistics methods. This is a
 
 -- Phenotype File Formats --
 EMMA: This is just a text file with each phenotype as one row.
+
+-- A Note about Multithreaded use a High Performance Computing --
+Performance of jester is dramatically improved (up to 50x) when numpy is linked
+to a machine-tuned matrix library like ATLAS or MKL. In these libraries,
+multithreading is frequently supported. I have found performance gains drop
+off after 4 threads for sampling mode.

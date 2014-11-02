@@ -23,7 +23,7 @@ def test(IN, wt=100, rMin=0.0, rMax=1.0, verbose=False, crossTest=False,
     ncov = IN.cov.shape[1]
     margResCols = ['chr','rsid','pos','beta','beta_se','or',
                   't_stat','Chi2','p_val']
-    jointResCols=['chr','rsid2','rsid2','dist','pos1','pos2','af1','af2','corr',
+    jointResCols=['chr','rsid1','rsid2','dist','pos1','pos2','af1','af2','corr',
               'beta1_M','pval1_M','beta2_M','pval2_M','beta1_J','beta1_J_se',
               'or1_J','t1_J','pval1_J','beta2_J','beta2_J_se','or2_J','t2_J',
               'pval2_J','Chi2_J','pval_J','beta1_X','beta1_X_se',

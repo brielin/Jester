@@ -43,7 +43,7 @@ def sampleNorm( Sig22I, rVals, ZMat, numSamples, wr):
 
 # Here rows (0,1,2..len(R)) correspond to testing SNPs with r**2
 # only above the corresponding value in R (0,0.05,0.1..0.95)
-def EZJV(  Z1, Z2, r, R ):
+def EZJV(Z1, Z2, r, R):
     mat = np.zeros( (len(R), len(Z1)) )
     try:
         score = (1/(1-r**2))*(Z1**2 + Z2**2 - 2*r*Z1*Z2)
@@ -52,12 +52,35 @@ def EZJV(  Z1, Z2, r, R ):
     mat[ R <= r**2, : ] = score
     return mat
 
-def EZJV2( Z1,Z2,r ):
+def EZJV2(Z1, Z2, r):
     try:
         score = (1/(1-r**2))*(Z1**2 + Z2**2 - 2*r*Z1*Z2)
     except ZeroDivisionError:
         score = Z1**2
     return score
+
+def JVLM(Z1, Z2, r, R):
+    mat = np.zeros((len(R), len(Z1)))
+    keep=(r<0.3&r>-0.3)|((np.sign(Z1)==np.sign(Z2))&(r<=0)|
+                        (np.sign(Z1)!=np.sign(Z2))&(r>=0))
+    try:
+        score = (1/(1-r**2))*(Z1**2 + Z2**2 - 2*r*Z1*Z2)
+    except ZeroDivisionError:
+        score = Z1**2
+    A = np.zeros(len(Z1))
+    A[keep]=score[keep]
+    mat[ R <= r**2, : ] = score
+    return mat
+
+def JVLM2(Z1, Z2, r):
+    keep=((np.sign(Z1)==np.sign(Z2))&(r<=0)|(np.sign(Z1)!=np.sign(Z2))&(r>=0))
+    try:
+        score = (1/(1-r**2))*(Z1**2 + Z2**2 - 2*r*Z1*Z2)
+    except ZeroDivisionError:
+        score = Z1**2
+    A = np.zeros(len(Z1))
+    A[keep]=score[keep]
+    return A
 
 def EZChi2( Y, snp, Cov, missing ):
     return EZZ( Y, snp, Cov, missing)**2

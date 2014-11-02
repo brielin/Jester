@@ -63,6 +63,11 @@ def main(argv):
     # basicGroup.add_option("-p", type="int", dest="pheno",
     # help="The phenotype index to be used in association.", default=0)
     # TODO: Implement and Test this.
+    advGroup.add_option("--TwoWindows",action="store_true",dest="twoWindows",
+                        default=False, help="With this option specified, jester"
+                        " will only test potentially linkage masked things in"
+                        " the approx window, but will test all things in the "
+                        "smaller testing window.")
     advGroup.add_option("--cross",action="store_true",dest="crossTest",
                         default=False, help="By default, jester computes the"
                         "joint test. With this option it additionally"
@@ -164,7 +169,8 @@ def main(argv):
                          noMean=options.noMean)
         if options.sMode:
             ZpVals, JpVals = sample(IN,wt,wr,wStep,rMin,rMax,options.rRange,
-                                    numSamples,minMAF,options.verbose,L)
+                                    numSamples,minMAF,options.twoWindows,
+                                    options.verbose,L)
             ZpVals.to_pickle( outFile + '.Z.pkl' )
             JpVals.to_pickle( outFile + '.J.pkl' )
         elif options.tMode:
