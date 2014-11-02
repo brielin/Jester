@@ -7,20 +7,27 @@ from time import time
 from jester import util as ju
 from jester import sliding_window as sw
 
-def JVwrapper(Z,r,ZVals,R,rMax):
+def JVwrapper(Z,r,ZVals,R,rMax,LMO):
     if r**2 < rMax:
-        return ju.EZJV( Z, ZVals, r, R )
+        if LMO:
+            return ju.JVLM( Z, ZVals, r, R )
+        else:
+            return ju.EZJV( Z, ZVals, r, R )
     else:
         return np.zeros((len(R), len(Z)))
 
 def TW_wrapper(Z, ZVals, r, rtw):
-    if r**2 >= rtw**2:
-        return ju.JVLM2(Z, ZVals, r).reshape((1,len(Z)))
+    if r**2 < rMax:
+        if LMO:
+            return ju.JVLM2( Z, ZVals, r).reshape((1,len(Z)))
+        else:
+            return ju.EZJV2( Z, ZVals, r).reshape((1,len(Z)))
     else:
         return np.zeros((1,len(Z)))
 
 def sample(IN, wt=100, wr=100, wStep=0, rMin=0.0, rMax=1.0,rRange=False,
-           numSamples=1000, minMAF=0.05, twoWindows=False, verbose=False, L=0):
+           numSamples=1000, minMAF=0.05, twoWindows=False, verbose=False,
+           LMO=False, L=0):
     if rRange:
         R = np.array([0.0, 0.0001, 0.0004, 0.001, 0.002, 0.004, 0.008  ])
     else:
@@ -60,10 +67,10 @@ def sample(IN, wt=100, wr=100, wStep=0, rMin=0.0, rMax=1.0,rRange=False,
         if len(win) > 0:
             JVals = np.zeros((len(win),len(R),numSamples))
             for j,(Z,r) in enumerate(zip(ZMat[:wt,], rVals[:wt])):
-                JVals[j] = JVwrapper(Z,r,ZVals,R,rMax)#shape=(len(R),nsamples)
+                JVals[j] = JVwrapper(Z,r,ZVals,R,rMax,LMO)#dim=(len(R),nsamples)
             if twoWindows:
                 for j,(Z,r) in enumerate(zip(ZMat[wt:,], rVals[wt:])):
-                    JVals[j+wt] = JVwrapper(Z,r,ZVals,R,rMax)
+                    JVals[j+wt] = JVwrapper(Z,r,ZVals,R,rMax,LMO)
                 JMaxSlide = []
                 rw = rVkeep.copy() #Can do this since w is increasing
                 JMaxSlide = np.zeros(JMaxStats.shape)

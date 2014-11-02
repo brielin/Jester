@@ -116,6 +116,7 @@ def main(argv):
     advGroup.add_option("--minp", dest="minp", help="Sets the minimum expected"
                         "p-value for doing the joint test. Defult is 1e-05. Set"
                         "to 1 to fit the model for every pair.", default=1e-05)
+    advGroup.add_option("--LMO",dest='LMO',default=False,action="store_true")
 
     parser.add_option_group(basicGroup)
     parser.add_option_group(advGroup)
