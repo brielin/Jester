@@ -1,3 +1,0 @@
-[console_scripts]
-jester = jester.__main__:main
-

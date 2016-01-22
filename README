@@ -17,7 +17,7 @@ gens: For compatability with .gens Impute2 file formats. This file has a line
     each individual, representing the probabilities of genotype 0, 1 and 2.
 Summary Statistics: For use with the summary statistics methods. This is a
     summary statistics file with one line for each SNP and columns
-    Chr RSID position alleleFreq Beta/logOdds StandardError pValue.
+    Chr RSID position A1 A2 alleleFreq NCase NCont Beta/logOdds StandardError pValue.
 
 -- Phenotype File Formats --
 EMMA: This is just a text file with each phenotype as one row.

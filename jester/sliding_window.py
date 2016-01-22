@@ -30,4 +30,5 @@ class sliding_window:
         if self.a_pos==self.arr_len:
             self.__init__(self.win_len,self.arr_len,self.vec_len,
                           A=self.A[(self.a_pos-self.win_len):self.a_pos])
-        return ret
+        ## This effects a copy, but it doesn't slow things down much
+        return ret[::-1]

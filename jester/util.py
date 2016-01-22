@@ -1,5 +1,6 @@
 import numpy as np
 import statsmodels.api as sm
+from IPython import embed
 
 ### FUNCTIONS for MTC computation ###
 def sampleNorm( Sig22I, rVals, ZMat, numSamples, wr):
@@ -23,11 +24,8 @@ def sampleNorm( Sig22I, rVals, ZMat, numSamples, wr):
         den = 1 - Sig12.dot( SR )
         Int = Sig22I.dot( ZMat )
         muC = Sig12.dot( Int )
-
         Sig2C = den
-        if( Sig2C < zerTol ):
-            raise np.linalg.LinAlgError('Singular Matrix')
-        ## Rank one updates of Sig22 inverse to include next SNP
+        # ## Rank one updates of Sig22 inverse to include next SNP
         SC = 1.0/den
         B = -SC*SR
         SigI_next = np.vstack((np.hstack((SC, B.T)),
@@ -37,9 +35,147 @@ def sampleNorm( Sig22I, rVals, ZMat, numSamples, wr):
             f = SigI_next[0:wr, wr:(wr+1)]
             h = SigI_next[wr,wr]
             SigI_next = E - (f.dot(f.T))/h
-        ZVals = np.random.normal(loc = muC, scale = np.sqrt( Sig2C ),
+        if( Sig2C < zerTol ):
+            #ZVals = muC.reshape((numSamples))
+            raise np.linalg.LinAlgError('Singular Matrix')
+        else:
+            ZVals = np.random.normal(loc = muC, scale = np.sqrt( Sig2C ),
                                  size = numSamples)
     return ZVals, SigI_next
+
+def sampleNormNoInv(Sig22I, rVals, ZMat, numSamples, wr):
+    zerTol = 1e-8
+    if Sig22I is None :
+        ZVals = np.random.normal( size = numSamples )
+        SigI_next = 1 # Not used, needs to be set for return val
+    elif len(rVals) == 1:
+        Sig12 = rVals[0]
+        muC = Sig12*ZMat
+        Sig2C = 1 - Sig12**2
+        ZVals = np.random.normal(loc = muC, scale = np.sqrt(Sig2C),
+                                 size = numSamples)
+    else:
+        Sig11 = 1
+        Sig12 = np.array([rVals])
+        ## Use inverse of Sig22 with Sig12 to get conditional mean and var
+        SR = Sig22I.dot( Sig12.T )
+        den = 1 - Sig12.dot( SR )
+        Int = Sig22I.dot( ZMat )
+        muC = Sig12.dot( Int )
+        Sig2C = den
+        if( Sig2C < zerTol ):
+            print Sig2C
+            ZVals = muC.reshape((numSamples))
+            #raise np.linalg.LinAlgError('Singular Matrix')
+        else:
+            ZVals = np.random.normal(loc = muC, scale = np.sqrt( Sig2C ),
+                                 size = numSamples)
+    return ZVals
+
+def covUpdate(AI,r):
+    Sig22I = AI
+    Sig11 = 1
+    Sig12 = np.array([r])
+    SR = Sig22I.dot( Sig12.T )
+    den = 1 - Sig12.dot( SR )
+    print den
+    den = np.array([[0.1]])
+    SC = 1.0/den
+    B = -SC*SR
+    SigI_next = np.vstack((np.hstack((SC, B.T)),
+                               np.hstack((B, Sig22I - SR.dot(B.T) )) ))
+    return SigI_next
+
+def eigPI(A):
+    zer = 1e-08
+    d,P = np.linalg.eigh(A)
+    dI = 1/d[d>zer]
+    nz = len(d)-len(dI)
+    Pz = P[:,nz:]
+    return Pz.dot((dI*Pz).T)
+
+def maxEntInv(A):
+    zer = 1e-08
+    d,P = np.linalg.eigh(A)
+    d[d<zer] = np.min(d[d > zer])
+    #d = np.maximum(d,np.ones(d.shape))
+    dI = 1/d
+    return P.dot((dI*P).T)
+
+def getCorMatrix(C, rsid, w=100):
+    if 2*w > C.shape[1]:
+        sys.stderr.write("Not enough correlation information for window.")
+        sys.exit()
+    loc = C.index.get_loc(rsid)
+    begin = np.max((0,loc-w))
+    end = np.min((C.shape[0]-1,loc+w))
+    lenWin = end-begin
+    rpos = loc-begin
+    cov = C.iloc[begin:end,0:lenWin].as_matrix().copy()
+    A = np.zeros((len(cov),len(cov)))
+    A[np.tril_indices(len(cov),-1)] = \
+        np.concatenate([cov[i,0:i][::-1] for i in range(len(cov))])
+    A +=  np.tril(A).T
+    np.fill_diagonal(A,np.ones(len(A)))
+    print np.min(np.linalg.eigvalsh(A))
+    sig_i = np.delete(A[rpos],rpos)
+    Sig = remove_ij(A,rpos,rpos)
+    return sig_i,Sig
+
+def getZScores(S, rsid, w=100):
+    loc = S.index.get_loc(rsid)
+    begin = np.max((0,loc-w))
+    end = np.min((C.shape[0]-1,loc+w))
+    P = S.iloc[begin:end,7].as_matrix()
+    B = S.iloc[begin:end,5].as_matrix()
+    Chi = np.sqrt(stats.chi2.ppf(1-P,1))
+    Chi[np.isinf(Chi)] = 8.4 ## 0
+    Z = np.sign(B)*Chi
+    return np.delete(Z,w)
+
+def ImputeZScore( Sig, sig_i, Z, lam=0.1):
+    W = sig_i.dot(np.linalg.inv((1-lam)*Sig + lam*np.identity(len(Sig))))
+    den = np.sqrt( W.dot(0.9*Sig+0.1*np.identity(len(Sig))).dot(W.T) )
+    zi = W.dot(Z)
+    zc = zi/den
+    return zi, zc, 1-stats.chi2.cdf(zc**2,1)
+
+def rep(rsid,lam=0.1):
+    sig_i, Sig = getCorMatrix(C,rsid,w=100)
+    Z = getZScores(S,rsid,w=100)
+    print ImputeZScore( Sig, sig_i, Z, lam)
+
+def remove_ij(x, i, j):
+    # Row i and column j divide the array into 4 quadrants
+    y = x[:-1,:-1]
+    y[:i,j:] = x[:i,j+1:]
+    y[i:,:j] = x[i+1:,:j]
+    y[i:,j:] = x[i+1:,j+1:]
+    return y
+
+def pinv_update(Sig22I, rVals):
+    Sig11 = 1
+    m=length(rVals)
+    Sig12 = np.array([rVals])
+        ## Use inverse of Sig22 with Sig12 to get conditional mean and var
+    SR = Sig22I.dot( Sig12.T )
+    den = 1 - Sig12.dot( SR )
+    if den < 1e-8:
+        SC = 1.0/den
+        B = -SC*SR
+        SigI_next = np.vstack((np.hstack((SC, B.T)),
+                               np.hstack((B, Sig22I - SR.dot(B.T) )) ))
+    else:
+        A = np.pinv(Sig22I)
+        k=SR
+        B=np.vstack((np.identity(m),k.T))
+        d=float(1/(1+k.T.dot(k)))
+        E=1-d*k.dot(k.T)
+        #E=np.linalg.pinv(1+k.dot(k.T))
+        R=E.dot(Sig22I.dot(E))
+        #R=E.dot(A.dot(E))
+        # R=(d**2)*Sig22I
+        MI=B.dot(R.dot(B.T))
 
 # Here rows (0,1,2..len(R)) correspond to testing SNPs with r**2
 # only above the corresponding value in R (0,0.05,0.1..0.95)
@@ -61,8 +197,8 @@ def EZJV2(Z1, Z2, r):
 
 def JVLM(Z1, Z2, r, R):
     mat = np.zeros((len(R), len(Z1)))
-    keep=(r<0.3&r>-0.3)|((np.sign(Z1)==np.sign(Z2))&(r<=0)|
-                        (np.sign(Z1)!=np.sign(Z2))&(r>=0))
+    keep=(r<0.3 and r>-0.3)|((np.sign(Z1)==np.sign(Z2))&(r<=0)|
+                             (np.sign(Z1)!=np.sign(Z2))&(r>=0))
     try:
         score = (1/(1-r**2))*(Z1**2 + Z2**2 - 2*r*Z1*Z2)
     except ZeroDivisionError:
@@ -112,9 +248,13 @@ def XV( Yall, snp, s, r, R, resN, X0 = None, missing = 'drop' ):
 
 # TODO: Implement more than just drop and raise, add corresponding option
 # If X0 is supplied, computes the partial correlation between X1 and X2 given X0
-def corr( X1, X2, X0=None, missing=None ):
+def corr( X1, X2, X0=None, missing=None, pheno=None ):
     if missing == 'drop':
-        mask = True - (np.isnan(X1) | np.isnan(X2))
+        if pheno is not None:
+            mask = True - (np.isnan(X1) | np.isnan(X2) |
+                           np.isnan(pheno.reshape(pheno.shape[0])))
+        else:
+            mask = True - (np.isnan(X1) | np.isnan(X2))
         X1 = X1[mask]
         X2 = X2[mask]
     elif missing == 'raise':
@@ -122,9 +262,12 @@ def corr( X1, X2, X0=None, missing=None ):
             sys.stderr.write("Missing value detected. Exiting")
             sys.exit(1)
     if X0 is not None:
-        X = np.hstack((X1.reshape((len(X1), 1)),X2.reshape((len(X2),1)),X0))
-        P = np.linalg.pinv(np.corrcoef(X, rowvar = False ))
-        r = -P[0,1]/np.sqrt( P[0,0]*P[1,1] )
+        # X = np.hstack((X1.reshape((len(X1), 1)),X2.reshape((len(X2),1)),X0))
+        # P = np.linalg.pinv(np.corrcoef(X, rowvar = False ))
+        # r = -P[0,1]/np.sqrt( P[0,0]*P[1,1] )
+        r1 = sm.OLS(X1,X0).fit().resid
+        r2 = sm.OLS(X2,X0).fit().resid
+        r = np.corrcoef(r1,r2)[0,1]
     else:
         r = np.corrcoef(X1,X2)[0,1]
     return r

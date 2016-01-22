@@ -6,7 +6,8 @@ from collections import deque
 from scipy import stats
 from math import exp
 from time import time
-from jester import util as ju
+from . import util as ju
+from IPython import embed
 
 def test(IN, wt=100, rMin=0.0, rMax=1.0, verbose=False, crossTest=False,
          minp=1e-05, L=0):
@@ -17,7 +18,9 @@ def test(IN, wt=100, rMin=0.0, rMax=1.0, verbose=False, crossTest=False,
 
     if verbose: print "Fitting null model."
     Y = IN.phenos
-    null = sm.Logit( Y, IN.cov ).fit(disp=0)
+    print len(Y), "phenotypes found.", sum(np.isnan(Y))[0], "missing."
+    null = sm.OLS( Y, IN.cov, missing='drop' ).fit(disp=0)
+    # null = sm.Logit( Y, IN.cov, missing='drop' ).fit(disp=0)
     print "Done."
 
     ncov = IN.cov.shape[1]
@@ -30,9 +33,11 @@ def test(IN, wt=100, rMin=0.0, rMax=1.0, verbose=False, crossTest=False,
               'or1_X','t1_X','pval1_X','beta2_X','beta2_X_se','or2_X','t2_X',
               'pval2_X','beta3_X','beta3_X_se','or3_X','t3_X','pval3_X',
               'Chi2_X','pval_X']
-
+    chiResCols = ['chr','rsid1','rsid2','dist','corr','chi1','chi2',
+                'chi2v1','chi1v2','chiJ']
     marg_res = []
     joint_res = []
+    chi_res = []
     if L==0: L = IN.numSNPs
     i = 0 # Tracks which SNP # we're at
     index = 0 # Tracks how many tests we've done
@@ -40,13 +45,14 @@ def test(IN, wt=100, rMin=0.0, rMax=1.0, verbose=False, crossTest=False,
     win = deque()
     store = deque()
     for i in range(L):
-        if (verbose & (i%10 == 0)):
+        if (verbose & (i%100 == 0)):
             print "At SNP", i, "time spent:", time()-t
         snp,chrm,id,pos = IN.next()
         af = np.mean(snp)
         # Do Marginal Test
         X = np.hstack((IN.cov,snp.reshape((len(snp),1))))
-        marg = sm.Logit(Y, X).fit(disp=0)
+        marg = sm.OLS(Y, X, missing='drop').fit(disp=0)
+        #marg = sm.Logit(Y, X, missing='drop').fit(disp=0)
         marg_b = marg.params[ncov]
         marg_or = np.exp(marg.params[ncov])
         marg_se = marg.bse[ncov]
@@ -56,25 +62,43 @@ def test(IN, wt=100, rMin=0.0, rMax=1.0, verbose=False, crossTest=False,
         marg_res.append([chrm,id,pos,marg_b, marg_se, marg_or, marg_t,
                         marg_Chi2, marg_p])
         for dist,(w,(id2,pos2,af2,marg2)) in enumerate(zip(win,store)):
-            r = ju.corr(w,snp,IN.P)
-            Z1 = stats.norm.ppf(1-marg_p/2)
-            Z2_min = (r*Z1 + np.sqrt( (r*Z1)**2 + 4*(chimin*(1-r**2)-Z1**2)))/2
-            p2_min = 2*(1-stats.norm.cdf(Z2_min))
+            t0=time()
+            r = ju.corr(w,snp,IN.P,missing='drop',pheno=Y)
+            #r = np.corrcoef(w,snp)[0,1]
+            #print time()-t0
+            Z1 = np.sign(marg_b)*stats.norm.ppf(1-marg_p/2)
+            ## NEED THE OTHER Z
+            #Z2h = r*Z1 + np.sqrt( -chimin*r**2 + chimin + r**2*Z1**2 -Z1**2)
+            #Z2l = r*Z1 - np.sqrt( -chimin*r**2 + chimin + r**2*Z1**2 -Z1**2)
             resNA = [chrm,id,id2,dist+1,pos,pos2,af,af2,r,marg_b,marg_p,
                      marg2.params[ncov],marg2.pvalues[ncov], -9, -9, -9, -9, -9,
                      -9, -9, -9, -9, -9, -9, -9, -9, -9, -9, -9, -9, -9, -9, -9,
                      -9, -9, -9, -9, -9, -9, -9, -9, -9]
+            Z2 = np.sign(marg2.params[ncov])*\
+                stats.norm.ppf(1-marg2.pvalues[ncov]/2.0)
+            chi1 = Z1**2
+            chi2 = Z2**2
+            if r < 1.0:
+                chiJ = (Z1**2 + Z2**2 - 2*r*Z1*Z2)/(1-r**2)
+            else:
+                chiJ = Z1**2
+            chi1v2 = chiJ - chi2
+            chi2v1 = chiJ - chi1
+            chi_res.append([chrm,id,id2,dist+1,r,chi1,chi2,chi2v1,chi1v2,chiJ])
+            if chiJ > chimin:
+                print Z1, Z2, r, chiJ
             if( (r**2 > rMax) | (r**2 < rMin)):
                 res = resNA
-            elif marg2.pvalues[ncov] > p2_min:
+            elif chiJ < chimin:
                 res = resNA
             else:
-
+                print i, dist
                 X = np.hstack(( IN.cov, snp.reshape((len(snp),1)),
                                 w.reshape((len(w),1)),
                                 (snp*w).reshape((len(snp),1)) ))
                 try:
-                    joint = sm.Logit(Y,  X[:,:-1]).fit(disp=0)
+                    joint = sm.OLS(Y,  X[:,:-1], missing='drop').fit(disp=0)
+                    #joint = sm.Logit(Y,  X[:,:-1], missing='drop').fit(disp=0)
                     joint_b1 = joint.params[ncov]
                     joint_or1 = np.exp( joint.params[ncov] )
                     joint_se1 = joint.bse[ncov]
@@ -89,7 +113,8 @@ def test(IN, wt=100, rMin=0.0, rMax=1.0, verbose=False, crossTest=False,
                     joint_Chi2 = 2*(joint.llf - null.llf)
                     joint_pv = 1 - stats.chi2.cdf( joint_Chi2, 2 )
                     if( crossTest ):
-                        cross = sm.Logit( Y,  X, missing = 'drop' ).fit(disp=0)
+                        cross = sm.OLS( Y,  X, missing = 'drop' ).fit(disp=0)
+                        #cross = sm.Logit( Y,  X, missing = 'drop' ).fit(disp=0)
                         cross_b1 = cross.params[ncov]
                         cross_or1 = np.exp( cross.params[ncov] )
                         cross_se1 = cross.bse[ncov]
@@ -133,9 +158,14 @@ def test(IN, wt=100, rMin=0.0, rMax=1.0, verbose=False, crossTest=False,
             store.pop()
     if verbose:
         print (index+1),"tests done in: ",time() - t,"seconds. Saving output."
-    joint_resDF = pd.DataFrame(joint_res,columns=jointResCols)
+    if len(joint_res) > 0:
+        joint_resDF = pd.DataFrame(joint_res,columns=jointResCols)
+    else:
+        joint_resDF = pd.DataFrame(columns=jointResCols)
     marg_resDF = pd.DataFrame(marg_res,columns=margResCols)
+    chi_resDF = pd.DataFrame(chi_res,columns=chiResCols)
+    chi_resDF['dist'] = chi_resDF['dist'].astype(int)
     # Need to set the type so that it isn't cut off if a float format is set
     joint_resDF[['dist','pos1','pos2']] = \
         joint_resDF[['dist','pos1','pos2']].astype(int)
-    return joint_resDF, marg_resDF
+    return joint_resDF, marg_resDF, chi_resDF

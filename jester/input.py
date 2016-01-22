@@ -26,6 +26,7 @@ import sys
 import numpy as np
 import struct
 import pdb
+from IPython import embed
 
 class plink:
    def __init__(self,fbase,type='b',kFile=None,phenoFile=None,sampleFile=None,
@@ -261,8 +262,9 @@ class plink:
       elif self.type == 's':
          X = self.fhandle.readline()
          if X == '': raise StopIteration
-         (chrm,rsid,pos,maf,beta,betaSE,pV) = X.strip().split()
-         return chrm,rsid,pos,maf,beta,betaSE,pV
+         (chrm,rsid,pos,a1,a2,maf,ncase,ncont,beta,betaSE,pV)=X.strip().split()
+         return int(chrm),rsid,int(pos),float(maf),a1,a2,int(ncase),int(ncont),\
+             float(beta),float(betaSE),float(pV)
 
       else: sys.stderr.write("Do not understand type %s\n" % (self.type))
 
@@ -442,20 +444,20 @@ class plink:
             v = line.strip().split()
             keys.append((v[0],v[1]))
             P.append([x == 'NA' and np.nan or float(x) for x in v[2:]])
-            f.close()
-            P = np.array(P)
-            # reorder to match self.indivs
-            D = {}
-            L = []
-            for i in range(len(keys)): D[keys[i]] = i
-            for i in range(len(self.indivs)):
-               if not D.has_key(self.indivs[i]): continue
-               L.append(D[self.indivs[i]])
-            P = P[L,:]
+         f.close()
+         P = np.array(P)
+         # reorder to match self.indivs
+         D = {}
+         L = []
+         for i in range(len(keys)): D[keys[i]] = i
+         for i in range(len(self.indivs)):
+            if not D.has_key(self.indivs[i]): continue
+            L.append(D[self.indivs[i]])
+         P = P[L,:]
       if noMean:
          X0 = P
       elif P is not None:
-         X0 = np.hstack([np.ones((IN.N,1)),P])
+         X0 = np.hstack([np.ones((self.N,1)),P])
       else:
          X0 = np.ones((self.N,1))
       # P contains just covariates, with no mean vector
