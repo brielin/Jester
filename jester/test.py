@@ -63,8 +63,8 @@ def test(IN, wt=100, rMin=0.0, rMax=1.0, verbose=False, crossTest=False,
                         marg_Chi2, marg_p])
         for dist,(w,(id2,pos2,af2,marg2)) in enumerate(zip(win,store)):
             t0=time()
-            r = ju.corr(w,snp,IN.P,missing='drop',pheno=Y)
-            #r = np.corrcoef(w,snp)[0,1]
+            #r = ju.corr(w,snp,IN.P,missing='drop',pheno=Y)
+            r = np.corrcoef(w,snp)[0,1]
             #print time()-t0
             Z1 = np.sign(marg_b)*stats.norm.ppf(1-marg_p/2)
             ## NEED THE OTHER Z
