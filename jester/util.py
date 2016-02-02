@@ -1,8 +1,23 @@
 import numpy as np
+import scipy as sp
 import statsmodels.api as sm
 from IPython import embed
 
 ### FUNCTIONS for MTC computation ###
+def sampleReg(snp, SMat, Sig12, ZMat, numSamples):
+    if SMat is None :
+        ZVals = np.random.normal(size=numSamples)
+    else:
+        S22IS12 = sp.linalg.lstsq(SMat.T,snp,cond=1e-8)[0]
+        muC = ZMat.T.dot(S22IS12)
+        SigC = 1-Sig12.dot(S22IS12)
+        if SigC <= 0:
+            ZVals=muC
+        else:
+            ZVals = np.random.normal(loc=muC, scale=np.sqrt(SigC),
+                                     size=numSamples)
+    return ZVals
+
 def sampleNorm( Sig22I, rVals, ZMat, numSamples, wr):
     zerTol = 1e-8
     if Sig22I is None :

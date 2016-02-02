@@ -62,7 +62,8 @@ def sample(IN, wt=100, wr=100, wStep=0, rMin=0.0, rMax=1.0,rRange=False,
         if (af < minMAF) or (af > 1- minMAF):
             #print i, af, id
             continue
-        rVals = np.array([ju.corr(x,snp,IN.P) for x in win])
+        rVals = np.array([np.corrcoef(x,snp)[0,1] for x in win])
+        #rVals = np.array([ju.corr(x,snp,IN.P) for x in win])
         rVkeep = (rVals>rtw)|(rVals<-rtw)
         try:
             ZVals, SigI_next = ju.sampleNorm(Sig22I, rVals, ZMat,

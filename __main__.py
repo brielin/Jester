@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 from __future__ import division
 from jester import input
-from jester import sample
+from jester import sampleReg
 from jester import test
 from jester import test_summary
 from jester import collect
@@ -113,7 +113,7 @@ def main(argv):
                         " sizes, this sets the interval.  (Default = 0)",
                         default=0)
     advGroup.add_option("--minMAF",dest="minMAF",help="Sets the MAF filter."
-                        " (Default = 0.05)",default=0.0)
+                        " (Default = 0.05)",default=0.05)
     advGroup.add_option("--seed",dest="seed",help="Sets the numpy seed. Default"
                         " is unset.",default=0)
     advGroup.add_option("--r2Min", dest = "rMin", help="Sets the minimum "
@@ -187,7 +187,7 @@ def main(argv):
                          remMissing=options.removeMissing,
                          noMean=options.noMean)
         if options.sMode:
-            ZpVals, JpVals = sample.sample(IN,wt,wr,wStep,rMin,rMax,options.rRange,
+            ZpVals, JpVals = sampleReg.sample(IN,wt,wr,wStep,rMin,rMax,options.rRange,
                                            numSamples,minMAF,options.twoWindows,
                                            options.verbose,options.LMO,
                                            options.from_bp,options.to_bp,L)

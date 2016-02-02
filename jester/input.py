@@ -318,8 +318,7 @@ class plink:
       m = G[x].mean()
       if G[x].var() == 0: s = 1.0
       else: s = np.sqrt(G[x].var())
-      if s == 0: G = G - m
-      else: G = (G - m) / s
+      G = (G - m) / s
       return G
 
    def getPhenos(self,phenoFile=None):

@@ -4,9 +4,11 @@ import numpy as np
 import scipy as sp
 import pandas as pd
 import sys
+from glob import glob
 from scipy import stats
 from math import exp
 from time import time
+from IPython import embed
 
 def collect(fbase,alpha=0.05):
     fsplit = fbase.rsplit('/',1)
@@ -18,19 +20,18 @@ def collect(fbase,alpha=0.05):
         fb=fbase
     firstZ = True
     firstJ = True
-    for file in os.listdir(directory):
-        if fnmatch.fnmatch(file, fb+'*.Z.pkl'):
-            if firstZ:
-                ZpVals = pd.read_pickle(file)
-                firstZ=False
-            else:
-                ZpVals =  pd.concat([ ZpVals, pd.read_pickle(file)])
-        elif fnmatch.fnmatch(file, fb+'*.J.pkl'):
-            if firstJ:
-                JpVals = pd.read_pickle(file)
-                firstJ=False
-            else:
-                JpVals =  pd.concat([ JpVals, pd.read_pickle(file)], axis=2)
+    ZpList = []
+    JpList = []
+    t=time()
+    for i,file in enumerate(glob(directory+'/'+fb+'*')):
+        if i%1000 == 0: print i, time()-t
+        if fnmatch.fnmatch(file, directory+'/'+fb+'*.Z.pkl'):
+            ZpList.append(pd.read_pickle(file)[0:1000])
+        elif fnmatch.fnmatch(file, directory+'/'+fb+'*.J.pkl'):
+            JpList.append(pd.read_pickle(file).iloc[:,:,0:1000])
+
+    ZpVals = pd.concat(ZpList,axis=0)
+    JpVals = pd.concat(JpList,axis=2)
     numSamples = len( ZpVals )
     index = int( np.round( (alpha)*(numSamples-1) ))
     sortZpVals = ZpVals.sort(columns=0)
@@ -40,4 +41,5 @@ def collect(fbase,alpha=0.05):
                            minor_axis = range(numSamples) )
     alphaC_Z = sortZpVals.iloc[index]
     alphaC_J = sortJpVals.minor_xs(index)
+    print alphaC_Z, alphaC_J
     return alphaC_Z[0], alphaC_J

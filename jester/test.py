@@ -78,7 +78,8 @@ def test(IN, wt=100, rMin=0.0, rMax=1.0, verbose=False, crossTest=False,
                 stats.norm.ppf(1-marg2.pvalues[ncov]/2.0)
             chi1 = Z1**2
             chi2 = Z2**2
-            if r < 1.0:
+            eps = 1e-5
+            if r < (1.0-eps):
                 chiJ = (Z1**2 + Z2**2 - 2*r*Z1*Z2)/(1-r**2)
             else:
                 chiJ = Z1**2

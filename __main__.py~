@@ -199,7 +199,7 @@ def main(argv):
             joint_res.to_csv(outFile+'.joint.out',sep='\t',na_rep='NA',
                              float_format='%.5g')
         elif options.tMode:
-            joint_res, marg_res, chi_res = test(IN, wt, rMin, rMax, options.verbose,
+            joint_res, marg_res, chi_res = test.test(IN, wt, rMin, rMax, options.verbose,
                                        options.crossTest, minp, L)
             joint_res.to_csv(outFile+'.joint.out',sep='\t',na_rep='NA',
                              float_format='%.5g')
