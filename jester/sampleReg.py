@@ -34,14 +34,16 @@ def sample(IN, wt=100, wr=100, wStep=0, rMin=0.0, rMax=1.0,rRange=False,
     if verbose:
         print IN.N,"individuals. Beginning to process",IN.numSNPs,"SNPs."
     if L==0: L=IN.numSNPs
+    wr = np.min((L,wr))
+    wt = np.min((L,wt))
     tmin = stats.t.ppf(1-5e-08,IN.N-2)
     rtw = tmin/np.sqrt(IN.N-2+tmin**2)
     t = time()
     index = 0
     ZMat = None
     SMat = None
-    WZ = sw.sliding_window(win_len=wr,arr_len=10*wr,vec_len=numSamples)
-    WS = sw.sliding_window(win_len=wr,arr_len=10*wr,vec_len=IN.N)
+    WZ = sw.sliding_window(win_len=wr,arr_len=2*wr,vec_len=numSamples)
+    WS = sw.sliding_window(win_len=wr,arr_len=2*wr,vec_len=IN.N)
     for i in range(L):
         if (i%100 == 0) and verbose:
             print "At SNP", i, "time spent:", time()-t
